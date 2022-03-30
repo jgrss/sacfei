@@ -6,6 +6,12 @@
 # cython: wraparound=False
 # cython: nonecheck=False
 
+"""
+The _draw_line() function was adapted from skimage (https://github.com/scikit-image)
+
+See function docstring for full copyright disclaimer
+"""
+
 import cython
 cimport cython
 
@@ -239,108 +245,6 @@ cdef double _get_line_angle(double point1_y,
 ctypedef double (*metric_ptr)(double[:, ::1], DTYPE_intp_t, DTYPE_intp_t, double, double, double[:, ::1], unsigned int) nogil
 
 
-cdef tuple draw_line_tuple(Py_ssize_t y0, Py_ssize_t x0, Py_ssize_t y1, Py_ssize_t x1):
-
-    """
-    Graciously adapated from the Scikit-image team
-
-    Generate line pixel coordinates.
-
-    Parameters
-    ----------
-    y0, x0 : int
-        Starting position (row, column).
-    y1, x1 : int
-        End position (row, column).
-
-    Returns
-    -------
-    rr, cc : (N,) ndarray of int
-        Indices of pixels that belong to the line.
-        May be used to directly index into an array, e.g.
-        ``img[rr, cc] = 1``.
-
-    See Also
-    --------
-    line_aa : Anti-aliased line generator
-
-    Examples
-    --------
-    >>> from skimage.draw import line
-    >>> img = np.zeros((10, 10), dtype=np.uint8)
-    >>> rr, cc = line(1, 1, 8, 8)
-    >>> img[rr, cc] = 1
-    >>> img
-    array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-           [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-           [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-           [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-           [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-           [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-           [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-           [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-           [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype=uint8)
-    """
-
-    cdef:
-        char steep = 0
-        Py_ssize_t x = x0
-        Py_ssize_t y = y0
-        Py_ssize_t dx = <int>(_abs(float(x1) - float(x0)))
-        Py_ssize_t dy = <int>(_abs(float(y1) - float(y0)))
-        Py_ssize_t sx, sy, d, i
-        DTYPE_intp_t[::1] rr, cc
-        # array template = array('i')
-        # array rr, cc
-
-    if (x1 - x) > 0:
-        sx = 1
-    else:
-        sx = -1
-
-    if (y1 - y) > 0:
-        sy = 1
-    else:
-        sy = -1
-
-    if dy > dx:
-
-        steep = 1
-        x, y = y, x
-        dx, dy = dy, dx
-        sx, sy = sy, sx
-
-    d = (2 * dy) - dx
-
-    rr = np.zeros(int(dx)+1, dtype='intp')
-    cc = rr.copy()
-    # rr = clone(template, int(dx)+1, True)
-    # cc = clone(template, int(dx)+1, True)
-
-    for i in range(0, dx):
-
-        if steep:
-            rr[i] = x
-            cc[i] = y
-        else:
-            rr[i] = y
-            cc[i] = x
-
-        while d >= 0:
-
-            y += sy
-            d -= 2 * dx
-
-        x += sx
-        d += 2 * dy
-
-    rr[dx] = y1
-    cc[dx] = x1
-
-    return rr, cc
-
-
 cdef void _extract_values_byte(DTYPE_uint8_t[:, ::1] block,
                                double[::1] values,
                                double[:, ::1] rc_,
@@ -411,22 +315,103 @@ cdef void _extract_values(double[:, ::1] block,
         values[fi] = block[fi_, fj_]
 
 
-cdef void draw_line(Py_ssize_t y0,
-                    Py_ssize_t x0,
-                    Py_ssize_t y1,
-                    Py_ssize_t x1,
-                    double[:, ::1] rc_) nogil:
+cdef void _draw_line(Py_ssize_t y0,
+                     Py_ssize_t x0,
+                     Py_ssize_t y1,
+                     Py_ssize_t x1,
+                     double[:, ::1] rc_) nogil:
+    """Generates line pixel coordinates
 
-    """
-    Graciously adapated from the Scikit-image team
+    Adapted from original code at:
+    https://github.com/scikit-image/scikit-image/blob/1af0071c8aadde6f7dbc06e53b7f38701b0f4b81/skimage/draw/_draw.pyx#L44
 
-    Generate line pixel coordinates.
+    Copyright (C) 2019, the scikit-image team
+    All rights reserved.
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions are
+    met:
+
+     1. Redistributions of source code must retain the above copyright
+        notice, this list of conditions and the following disclaimer.
+     2. Redistributions in binary form must reproduce the above copyright
+        notice, this list of conditions and the following disclaimer in
+        the documentation and/or other materials provided with the
+        distribution.
+     3. Neither the name of skimage nor the names of its contributors may be
+        used to endorse or promote products derived from this software without
+        specific prior written permission.
+
+    THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+    IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+    DISCLAIMED. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+    INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+    SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+    HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+    STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+    IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+    POSSIBILITY OF SUCH DAMAGE.
+
+    skimage/_shared/version_requirements.py:_check_version
+
+        Copyright (c) 2013 The IPython Development Team
+        All rights reserved.
+
+        Redistribution and use in source and binary forms, with or without
+        modification, are permitted provided that the following conditions are met:
+
+        * Redistributions of source code must retain the above copyright notice, this
+          list of conditions and the following disclaimer.
+
+        * Redistributions in binary form must reproduce the above copyright notice,
+          this list of conditions and the following disclaimer in the documentation
+          and/or other materials provided with the distribution.
+
+        * Neither the name of the copyright holder nor the names of its
+          contributors may be used to endorse or promote products derived from
+          this software without specific prior written permission.
+
+        THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+        AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+        IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+        DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+        FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+        DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+        SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+        CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+        OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+        OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+    skimage/_shared/version_requirements.py:is_installed:
+
+        Original Copyright (C) 2009-2011 Pierre Raybaut
+
+        Permission is hereby granted, free of charge, to any person obtaining
+        a copy of this software and associated documentation files (the
+        "Software"), to deal in the Software without restriction, including
+        without limitation the rights to use, copy, modify, merge, publish,
+        distribute, sublicense, and/or sell copies of the Software, and to
+        permit persons to whom the Software is furnished to do so, subject to
+        the following conditions:
+
+        The above copyright notice and this permission notice shall be
+        included in all copies or substantial portions of the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+        EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+        MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+        NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+        LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+        OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+        WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
     Parameters
     ----------
-    y0, x0 : int
+    r0, c0 : int
         Starting position (row, column).
-    y1, x1 : int
+    r1, c1 : int
         End position (row, column).
 
     Returns
@@ -439,24 +424,6 @@ cdef void draw_line(Py_ssize_t y0,
     See Also
     --------
     line_aa : Anti-aliased line generator
-
-    Examples
-    --------
-    >>> from skimage.draw import line
-    >>> img = np.zeros((10, 10), dtype=np.uint8)
-    >>> rr, cc = line(1, 1, 8, 8)
-    >>> img[rr, cc] = 1
-    >>> img
-    array([[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-           [0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-           [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-           [0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-           [0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-           [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-           [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-           [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-           [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-           [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]], dtype=uint8)
     """
 
     cdef:
@@ -1419,12 +1386,7 @@ cdef tuple close_end(DTYPE_uint8_t[:, ::1] edge_block,
     for ip in range(1, max_gap-2):
 
         if edge_block[center+(ip*ip_), center+(ip*jp_)] == 1:
-
-            # Draw a line that would connect the two points.
-            # rr_, cc_ = draw_line_tuple(center, center, center+(ip*ip_), center+(ip*jp_))
-            # rr_shape = rr_.shape[0]
-
-            draw_line(center, center, center+(ip*ip_), center+(ip*jp_), rcc__)
+            _draw_line(center, center, center+(ip*ip_), center+(ip*jp_), rcc__)
 
             # Get the current line length.
             rr_shape = <int>rcc__[2, 0]
@@ -1602,7 +1564,7 @@ cdef void _link_endpoints(DTYPE_uint8_t[:, ::1] edge_block,
                                 short_line = True
 
                                 # Draw the straightest line.
-                                draw_line(center, center, ii, jj, rcc_)
+                                _draw_line(center, center, ii, jj, rcc_)
 
                             else:
 
@@ -1628,7 +1590,7 @@ cdef void _link_endpoints(DTYPE_uint8_t[:, ::1] edge_block,
                                 # Try a straighter line.
                                 if not short_line:
 
-                                    draw_line(center, center, ii, jj, rcc_)
+                                    _draw_line(center, center, ii, jj, rcc_)
 
                                     # Get the current line length.
                                     rc_length_ = <int>rcc_[2, 0]
@@ -2264,7 +2226,7 @@ cdef unsigned int _orthogonal_opt(double y1,
     # Find the orthogonal line
     # Draw a line from the center pixel
     #   to the current end coordinate.
-    draw_line(<int>y1, <int>x1, y3, x3, rcc2_)
+    _draw_line(<int>y1, <int>x1, y3, x3, rcc2_)
 
     # Get the current line length.
     rc_length_ = <int>rcc2_[2, 0]
@@ -2293,7 +2255,7 @@ cdef unsigned int _orthogonal_opt(double y1,
     # Find the orthogonal line
     # Draw a line from the center pixel
     #   to the current end coordinate.
-    draw_line(<int>y1, <int>x1, y4, x4, rcc2_)
+    _draw_line(<int>y1, <int>x1, y4, x4, rcc2_)
 
     # Get the current line length.
     rc_length_ = <int>rcc2_[2, 0]
@@ -2348,7 +2310,7 @@ cdef void _get_angle_info(double[:, ::1] edge_image_block,
 
     # Draw a line from the center pixel
     #   to the current end coordinate.
-    draw_line(iy1, jx1, iy2, jx2, rcc1)
+    _draw_line(iy1, jx1, iy2, jx2, rcc1)
 
     # Get the current line length.
     rc_length = <int>rcc1[2, 0]
@@ -2672,7 +2634,7 @@ cdef double _get_edge_direction(double[:, ::1] gradient_block,
                 j2 = (window_size - j1) - 1
 
                 # Draw a line
-                draw_line(i1, j1, i2, j2, rc_)
+                _draw_line(i1, j1, i2, j2, rc_)
 
                 # Get the current line length.
                 rc_length = <int>rc_[2, 0]
@@ -4389,9 +4351,9 @@ cdef void _get_direction(double[:, ::1] imarray_,
 
         # Draw a line between the two endpoints.
         if is_row:
-            draw_line(half_window, half_window, ija, t_value, rc)
+            _draw_line(half_window, half_window, ija, t_value, rc)
         else:
-            draw_line(half_window, half_window, t_value, ija, rc)
+            _draw_line(half_window, half_window, t_value, ija, rc)
 
         # rc_shape = rc.shape[1]
         rc_shape = <int>rc[2, 0]  # the real line length
@@ -4488,9 +4450,9 @@ cdef void _get_optimal_angle(double[:, ::1] imarray_,
 
         # Draw a line between the two endpoints.
         if is_row:
-            draw_line(half_window, half_window, y0, x0, rc)
+            _draw_line(half_window, half_window, y0, x0, rc)
         else:
-            draw_line(half_window, half_window, x0, y0, rc)
+            _draw_line(half_window, half_window, x0, y0, rc)
 
         rc_shape = <int>rc[2, 0]  # the real line length
         line_values = rc[3, :rc_shape]  # row of zeros, up to the line length
@@ -4538,9 +4500,9 @@ cdef void _line_collinearity(double[:, ::1] imarray_,
 
         # Draw a line between the two endpoints.
         if is_row == 1:
-            draw_line(half_window, half_window, y0, x0, rc)
+            _draw_line(half_window, half_window, y0, x0, rc)
         else:
-            draw_line(half_window, half_window, x0, y0, rc)
+            _draw_line(half_window, half_window, x0, y0, rc)
 
         rc_shape = <int>rc[2, 0]  # the real line length
 
